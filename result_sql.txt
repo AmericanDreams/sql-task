@@ -1,0 +1,85 @@
+1.Task
+
+Get numbers of vehicles sold (loans disbursed) in Jan and Feb 2020 per each vehicle make. 
+a) Display only those makes where total sales are more than 1000 units
+b) Display full sales data including all makes (including those where sales are not made)
+
+2. Task
+
+Get current weekly payment amount for each loan. Table m_loan_repayment_schedule contains weekly payment records. Weekly payment record should be selected for the first week where obligations are not met (value for field completed_derived=0). Use principal_amount plus interest_amount to acquire weekly payment amount.
+
+3. Task
+
+Calculate current balance (scheduled amount - payed amount) for each loan. Use tables m_loan_repayment_schedule for payment schedule data. Total scheduled payment amount on current date must be calculated by sum of all amount field values. Some values can be null. Payment data are stored in table m_loan_transaction.
+
+================================================================================================================
+
+1.a)
+
+SELECT vmake.id                      VEHICLE_MAKE_ID,
+       Count(vmodel.vehicle_make_id) LOAN_COUNTS
+FROM   `loan-schema`.m_loan loan
+       INNER JOIN `asset-schema`.asset
+               ON loan.id = asset.m_loan_id
+       INNER JOIN `asset-schema`.vehicle_model vmodel
+               ON vmodel.id = asset.model_id
+       INNER JOIN `asset-schema`.vehicle_make vmake
+               ON vmodel.vehicle_make_id = vmake.id
+WHERE  YEAR(loan.disbursedon_date) = 2020
+       AND MONTH(loan.disbursedon_date) IN ( 1, 2 )
+GROUP  BY vmodel.vehicle_make_id
+HAVING Count(vmodel.vehicle_make_id) > 1000;  
+
+1.b)
+
+SELECT asset.id              ASSET_ID,
+       asset.registration_no ASSET_REGISTRATION_NO,
+       asset.chassis_no      ASSET_CHASIS_NO,
+       vmake.id              VEHICLE_MAKE_ID,
+       vmake.name            VEHICLE_MAKE_NAME,
+       vmodel.id             VEHICLE_MODEL_ID,
+       vmodel.name           VEHICLE_MODEL_NAME,
+       ( CASE
+           WHEN ( loan.id IS NULL ) THEN 'NOT SOLD'
+           ELSE 'SOLD'
+         end )               SALE_INFO
+FROM   `asset-schema`.asset
+       INNER JOIN `asset-schema`.vehicle_model vmodel
+               ON vmodel.id = asset.model_id
+       INNER JOIN `asset-schema`.vehicle_make vmake
+               ON vmake.id = vmodel.vehicle_make_id
+       LEFT JOIN `loan-schema`.m_loan loan
+              ON loan.id = asset.m_loan_id; 
+              
+              
+--------------------------------------------------------------------------------------------------------------
+
+2)
+
+SELECT loan.id 									LOAN_ID,
+       loan.account_no 								ACCOUNT_NO,
+       ( IFNULL(lrs.principal_amount, 0) + IFNULL(lrs.interest_amount, 0) ) 	WEEKLY_PAYMENT
+FROM   `loan-schema`.m_loan loan
+       INNER JOIN `loan-schema`.m_loan_repayment_schedule lrs
+               ON lrs.loan_id = loan.id
+                  AND lrs.completed_derived = 0 
+                  
+                                 
+--------------------------------------------------------------------------------------------------------------
+
+3)
+
+SELECT loan.id,
+       loan.account_no,
+       ( IFNULL((SELECT SUM(IFNULL(principal_amount, 0)
+                            + IFNULL(interest_amount, 0)
+                            + IFNULL(fee_charges_amount, 0)
+                            + IFNULL(fee_charges_amount, 0)
+                            + IFNULL(penalty_charges_amount, 0))
+                 FROM   `loan-schema`.m_loan_repayment_schedule lrs
+                 WHERE  loan.id = lrs.loan_id), 0) - 
+          IFNULL((SELECT SUM(lt.amount) FROM
+         		`loan-schema`.m_loan_transaction lt
+                  WHERE  lt.is_reversed = false
+                         AND loan.id = lt.loan_id), 0) ) CURRENT_BALANCE
+FROM   `loan-schema`.m_loan loan; 

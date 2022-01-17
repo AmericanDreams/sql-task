@@ -39,30 +39,30 @@ SELECT asset.id              ASSET_ID,
        vmake.name            VEHICLE_MAKE_NAME,
        vmodel.id             VEHICLE_MODEL_ID,
        vmodel.name           VEHICLE_MODEL_NAME,
-       ( CASE
-           WHEN ( loan.id IS NULL ) THEN 'NOT SOLD'
-           ELSE 'SOLD'
-         end )               SALE_INFO
+       loan.id               LOAN_ID,
+       loan.account_no       LOAN_ACCOUNT_NO,
+       loan.disbursedon_date LOAN_DISBURSEDON_DATE
 FROM   `asset-schema`.asset
        INNER JOIN `asset-schema`.vehicle_model vmodel
                ON vmodel.id = asset.model_id
        INNER JOIN `asset-schema`.vehicle_make vmake
                ON vmake.id = vmodel.vehicle_make_id
        LEFT JOIN `loan-schema`.m_loan loan
-              ON loan.id = asset.m_loan_id; 
+               ON loan.id = asset.m_loan_id;
               
               
 --------------------------------------------------------------------------------------------------------------
 
 2)
 
-SELECT loan.id 									LOAN_ID,
-       loan.account_no 								ACCOUNT_NO,
-       ( IFNULL(lrs.principal_amount, 0) + IFNULL(lrs.interest_amount, 0) ) 	WEEKLY_PAYMENT
-FROM   `loan-schema`.m_loan loan
-       INNER JOIN `loan-schema`.m_loan_repayment_schedule lrs
-               ON lrs.loan_id = loan.id
-                  AND lrs.completed_derived = 0 
+select loan.id										    LOAN_ID,
+       loan.account_no									    ACCOUNT_NO,
+       IFNULL((SELECT IFNULL(lrs.principal_amount, 0) + IFNULL(lrs.interest_amount, 0)
+			FROM `loan-schema`.m_loan_repayment_schedule lrs
+			WHERE lrs.loan_id = loan.id and lrs.completed_derived=0
+            ORDER BY id
+            LIMIT 1), 0) 								    WEEKLY_PAYMENT
+from   `loan-schema`.m_loan as loan;
                   
                                  
 --------------------------------------------------------------------------------------------------------------

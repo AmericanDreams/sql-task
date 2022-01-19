@@ -32,6 +32,21 @@ HAVING Count(vmodel.vehicle_make_id) > 1000;
 
 1.b)
 
+#1st fariant
+
+SELECT vmake.id              				VEHICLE_MAKE_ID,
+       vmake.name            				VEHICLE_MAKE_NAME,
+       count(asset.id)					COUNT
+FROM   `asset-schema`.vehicle_make vmake
+       LEFT JOIN `asset-schema`.vehicle_model vmodel
+               ON vmodel.vehicle_make_id = vmake.id
+       LEFT JOIN `asset-schema`.asset asset
+               ON asset.model_id = vmodel.id
+GROUP BY vmake.id
+
+
+#2nd variant              
+
 SELECT vmake.id              				VEHICLE_MAKE_ID,
        vmake.name            				VEHICLE_MAKE_NAME,
        IFNULL(sum(tran.amount), 0)			AMOUNT

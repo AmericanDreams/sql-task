@@ -32,25 +32,21 @@ HAVING Count(vmodel.vehicle_make_id) > 1000;
 
 1.b)
 
-SELECT asset.id              ASSET_ID,
-       asset.registration_no ASSET_REGISTRATION_NO,
-       asset.chassis_no      ASSET_CHASIS_NO,
-       vmake.id              VEHICLE_MAKE_ID,
-       vmake.name            VEHICLE_MAKE_NAME,
-       vmodel.id             VEHICLE_MODEL_ID,
-       vmodel.name           VEHICLE_MODEL_NAME,
-       loan.id               LOAN_ID,
-       loan.account_no       LOAN_ACCOUNT_NO,
-       loan.disbursedon_date LOAN_DISBURSEDON_DATE
-FROM   `asset-schema`.asset
-       INNER JOIN `asset-schema`.vehicle_model vmodel
-               ON vmodel.id = asset.model_id
-       INNER JOIN `asset-schema`.vehicle_make vmake
-               ON vmake.id = vmodel.vehicle_make_id
+SELECT vmake.id              				VEHICLE_MAKE_ID,
+       vmake.name            				VEHICLE_MAKE_NAME,
+       IFNULL(sum(tran.amount), 0)			AMOUNT
+FROM   `asset-schema`.vehicle_make vmake
+       LEFT JOIN `asset-schema`.vehicle_model vmodel
+               ON vmodel.vehicle_make_id = vmake.id
+       LEFT JOIN `asset-schema`.asset asset
+               ON asset.model_id = vmodel.id
        LEFT JOIN `loan-schema`.m_loan loan
-               ON loan.id = asset.m_loan_id;
-              
-              
+               ON loan.id = asset.m_loan_id
+       LEFT JOIN `loan-schema`.m_loan_transaction tran
+	       ON tran.loan_id = loan.id and tran.is_reversed=0
+GROUP BY vmake.id
+
+       
 --------------------------------------------------------------------------------------------------------------
 
 2)
